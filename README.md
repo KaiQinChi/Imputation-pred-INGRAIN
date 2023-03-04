@@ -10,10 +10,10 @@ Furthermore, a new implementation called Imputation Cycle is introduced to enabl
 with prediction enhancement at multiple levels, which helps to accelerate the speed of convergence. 
 
 
-<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig1.png" width="50%">
+<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig1.png" width="70%">
 
 
-<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig2.png" width="50%">
+<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig2.png" width="70%">
 
 ## Requirements
 - Numpy
