@@ -13,7 +13,7 @@ import pickle
 import csv
 import math
 
-datasets = ['billiard', 'cuebiq', 'cuebiq-us', 'cuebiq-au', 'zara', 'foursquare', 'geolife', 'basketball', 'gowalla']
+datasets = ['billiard', 'zara', 'foursquare', 'geolife', 'basketball', 'gowalla']
 # proj_dir = './impute/'  # use it on NCI
 proj_dir = ''
 
@@ -103,12 +103,6 @@ def loadDataset(dataset_folder, dataset_name, train_set=True, usage_percent=1, s
         return d[:input_num], frames, intervals, POI_num
     else:
         return d[:input_num], frames, intervals, max_frame
-
-    # # -----------------------For testing some imputation points on map------------------------
-    # d = data.astype(np.float32)
-    # input_num = int(d.shape[0] * usage_percent)
-    # max_frame = np.amax(frames)
-    # return d[-70:], frames[-70:], max_frame
 
 
 def split_digits(data, split_size=8):
@@ -276,53 +270,6 @@ def divideShuffleDataset(data, min_imp_percent, max_imp_percent, pre_len, comp_p
             mis_points_list.append(None)
 
     return data[:, :-pre_len], torch.cat(data_imp, dim=0)[:, :, :], data_pre.squeeze(1), mis_points_list
-
-
-def drawPredictResult(dir_, f_name, method_):
-    f_name_pref = os.path.splitext(f_name)[0]
-    df = pd.read_csv(dir_ + f_name)
-    cur_epoch = df['cur_epoch']
-    train_pre_loss = df['train_pre_loss']
-    test_pre_loss = df['test_pre_loss']
-    train_imp_loss = df['train_imp_loss']
-    test_imp_loss = df['test_imp_loss']
-    imp_percent = df['imp_percent'].iat[0]
-
-    if method_ == 'GRU' or method_ == 'LSTM':
-        plt.figure(figsize=(14, 10))
-        # plt.plot(cur_epoch, train_pre_loss, '-g', color='blue', label='train_pre_loss')
-        plt.plot(cur_epoch, test_pre_loss, '-g', color='black', label='test_pre_loss')
-        plt.ylabel('Predict Loss', fontsize=20)
-        plt.xlabel('Epoch', fontsize=20)
-        plt.legend()
-        # plt.axis.set_xticks(np.arange(0, 1, 0.1))
-        plt.grid(True)
-        plt.title('Train/Test Loss - ' + method_ + str(imp_percent), fontsize=20)
-        plt.savefig(dir_ + method_ + str(imp_percent) + '_Predict_' + f_name_pref + '.png', bbox_inches='tight')
-        plt.show()
-    elif method_ == 'ImputeTFRNN':
-        plt.figure(figsize=(14, 10))
-        # plt.plot(cur_epoch, train_pre_loss, '-g', color='blue', label='train_pre_loss')
-        plt.plot(cur_epoch, test_pre_loss, '-g', color='black', label='test_pre_loss')
-        plt.ylabel('Predict Loss', fontsize=20)
-        plt.xlabel('Epoch', fontsize=20)
-        # plt.set_yticks(np.arange(0, 0.9, 0.1))
-        plt.legend()
-        plt.grid(True)
-        plt.title('Train/Test Loss - ' + method_ + str(imp_percent), fontsize=20)
-        plt.savefig(dir_ + method_ + str(imp_percent) + '_Predict_' + f_name_pref + '.png', bbox_inches='tight')
-        plt.clf()
-
-        # plt.plot(cur_epoch, train_imp_loss, '-g', color='blue', label='train_imp_loss')
-        plt.plot(cur_epoch, test_imp_loss, '-g', color='black', label='test_imp_loss')
-        plt.ylabel('Impute Loss', fontsize=20)
-        plt.xlabel('Epoch', fontsize=20)
-        # plt.set_yticks(np.arange(0, 0.9, 0.1))
-        plt.legend()
-        plt.grid(True)
-        plt.title('Train/Test Loss - ' + method_ + str(imp_percent), fontsize=20)
-        plt.savefig(dir_ + method_ + str(imp_percent) + '_Impute_' + f_name_pref + '.png', bbox_inches='tight')
-        # plt.show()
 
 
 def haversine(coord1, coord2, metric=1):

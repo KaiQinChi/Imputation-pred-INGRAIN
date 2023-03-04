@@ -1,3 +1,8 @@
+"""
+Created on 16/09/2020
+
+@author: Kyle
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,11 +60,12 @@ class ImputeAtten(nn.Module):
                                            obs_mask, imp_mask)
         imp_out = self.impute_linear(imp_emb)
 
+        # set the Supplement layer with Add or Replace Operation
         if imp_points_ind is not None:
             obs_emb.data[:, imp_points_ind] += imp_emb.data
 
         if rnn_hid is not None:
-            # pre_out, rnn_hid = self.gru_pred(obs_emb, rnn_hid)
+            pre_out, rnn_hid = self.gru_pred(obs_emb, rnn_hid)  # use GRU unit or not
             pre_out = self.pred_linear(self.relu(obs_emb[:, -1]))
             return imp_out, pre_out, rnn_hid
         else:
@@ -67,10 +73,6 @@ class ImputeAtten(nn.Module):
 
     def ini_rnn_hid(self, batch_size, device):
         h = Variable(torch.zeros(self.rnn_layers, batch_size, self.rnn_hid_dim))
-
-        # mu = 0
-        # sd = 1 / self.rnn_hid_dim
-        # h = torch.randn(self.rnn_layers, batch_size, self.rnn_hid_dim, requires_grad=False) * sd + mu
         return h.to(device)
 
     def loss(self, output, y, loss_type=1):
@@ -82,42 +84,6 @@ class ImputeAtten(nn.Module):
         else:
             lose = torch.mean(y - output).pow(2)
         return lose
-
-    # def precision(self, output, y):
-    #     iter_cnt = 0
-    #     recall1 = 0
-    #     recall5 = 0
-    #     recall10 = 0
-    #     average_precision = 0.
-    #     for j in range(self.setting.batch_size):
-    #         # o contains a per user list of votes for all locations for each sequence entry
-    #         o = out[j]
-    #
-    #         # partition elements
-    #         o_n = o.cpu().detach().numpy()
-    #         ind = np.argpartition(o_n, -10, axis=1)[:, -10:]  # top 10 elements
-    #
-    #         y_j = y[:, j]
-    #
-    #         for k in range(len(y_j)):
-    #             # resort indices for k:
-    #             ind_k = ind[k]
-    #             r = ind_k[np.argsort(-o_n[k, ind_k], axis=0)]  # sort top 10 elements descending
-    #
-    #             r = torch.tensor(r)
-    #             t = y_j[k]
-    #
-    #             # compute MAP:
-    #             r_kj = o_n[k, :]
-    #             t_val = r_kj[t]
-    #             upper = np.where(r_kj > t_val)[0]
-    #             precision = 1. / (1 + len(upper))
-    #
-    #             # store
-    #             u_recall1[active_users[j]] += t in r[:1]
-    #             u_recall5[active_users[j]] += t in r[:5]
-    #             u_recall10[active_users[j]] += t in r[:10]
-    #             u_average_precision[active_users[j]] += precision
 
 
 class LinearEmbedding(nn.Module):

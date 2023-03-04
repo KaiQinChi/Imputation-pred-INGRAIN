@@ -12,7 +12,7 @@ import numpy as np
 from torch.autograd import Variable
 
 import dataUtils
-import imputeModelOutCycle
+import imputeModel
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
@@ -21,8 +21,7 @@ def initSysParameters():
     parser = argparse.ArgumentParser(description='Train the model')
     parser.add_argument('--method', type=str, default='imputeAttention')
     parser.add_argument('--dataset_folder', type=str, default='dataset')
-    parser.add_argument('--dataset_name', type=str,
-                        default='geolife')  # foursquare, cuebiq-us, cuebiq-au, geolife, gowalla
+    parser.add_argument('--dataset_name', type=str, default='geolife')
     parser.add_argument('--imp_percent', type=float, default=0.2)
     parser.add_argument('--imp_points_num', type=int, default=1, help='number of points for imputing per time')
     parser.add_argument('--pred_len', type=int, default=1, help='1 is considered only in the test')
@@ -32,19 +31,19 @@ def initSysParameters():
     parser.add_argument('--rnn_layers', type=int, default=1)
     parser.add_argument('--rnn_type', type=str, default='GRU')
     parser.add_argument('--heads', type=int, default=2)
-    parser.add_argument('--epochs', type=int, default=60)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learn_rate', type=float, default=0.001)
     parser.add_argument('--dropout', type=float, default=0.1)
     parser.add_argument('--batch_size', type=int, default=70)
-    parser.add_argument('--alpha', type=float, default=1)
-    parser.add_argument('--beta', type=float, default=1)
-    parser.add_argument('--beta_s', type=float, default=1)
+    parser.add_argument('--alpha', type=float, default=1, help='imputation train loss rate')
+    parser.add_argument('--beta', type=float, default=1, help='prediction train loss rate')
+    parser.add_argument('--beta_s', type=float, default=1, help='speed train loss rate')
     parser.add_argument('--clip', type=int, help='gradient clipping', default=10)
     parser.add_argument('--shuffle_data', type=bool, default=True)
     parser.add_argument('--add_speed_loss', type=bool, default=True)
     parser.add_argument('--loss_func', type=int, default=1, help='1.l2 loss; 2.euclidean; 3.haversine; 4.dtw')
-    parser.add_argument('--step', type=int, default=5)
-    parser.add_argument('--mask_dis', type=str, default='uniform')  # uniform, poi2, poi10
+    parser.add_argument('--step', type=int, default=5, help='step length to generate next sub-trajectory')
+    parser.add_argument('--mask_dis', type=str, default='uniform', help='mask distribution - uniform, poi2, poi10')
     parser.add_argument('--traj_width', type=str, default='20_1')
     parser.add_argument('--use_portion', type=int, default=1)
 
@@ -100,13 +99,12 @@ def cal_loss(x, y, loss_type):
     return loss
 
 
-def runModel(model_, d_loader, opt, b_size, dev, training=True, output_imp_p=False):
+def runModel(model_, d_loader, opt, b_size, dev, training=True):
     model_.train()
     total_imp_loss = 0
     total_pre_loss = 0
     imp_times = 0
     pre_times = 0
-    imp_coordinates = None
 
     rnn_h = model_.ini_rnn_hid(b_size, dev)
 
@@ -122,7 +120,6 @@ def runModel(model_, d_loader, opt, b_size, dev, training=True, output_imp_p=Fal
         miss_p_len = len(miss_p_ind)
         data_obs_dev = data_obs.to(dev)
         inter_obs_dev = inter_obs.to(dev)
-        imp_points = torch.zeros(data_obs.size(0), miss_p_len, 2).to(dev)
         obs_speed = getAveSpeed(data_obs_dev, inter_obs_dev, obs_p_ind)
 
         while i < miss_p_len:
@@ -140,6 +137,7 @@ def runModel(model_, d_loader, opt, b_size, dev, training=True, output_imp_p=Fal
                 imp_out, pre_out, rnn_hid = model_(data_obs.to(dev), ini_imp_emb, None,
                                                    frames_obs.to(dev), frames_imp[:, i:imp_p_end_i].to(dev),
                                                    obs_fra_emb, imp_fra_emb, rnn_h)
+
                 # data_obs.data[:, imp_p_ind] = imp_out.cpu().data
 
                 batch_imp_loss = cal_loss(data_imp[:, i:imp_p_end_i].to(dev), imp_out, args.loss_func)
@@ -180,14 +178,8 @@ def runModel(model_, d_loader, opt, b_size, dev, training=True, output_imp_p=Fal
                 # batch_imp_loss = cal_loss(data_imp[:, i:imp_p_end_i].to(dev), imp_out, 3)
                 total_imp_loss += batch_imp_loss.item()
                 imp_times += 1
-                imp_points.data[:, i:imp_p_end_i] = imp_out.data  # collect missing points
 
             i = imp_p_end_i
-        imp_coordinates = [data_obs, data_imp, imp_points, miss_p_ind]
-
-    if output_imp_p and training is False:
-        f = "output/" + args.dataset_name + "/imp_coordinates.pkl"
-        dataUtils.pk_dump(f, imp_coordinates)  # output imputed points
 
     return total_imp_loss / imp_times, total_pre_loss / pre_times
 
@@ -229,11 +221,11 @@ if __name__ == '__main__':
                                                                                   args.use_portion,
                                                                                   args.step, args.traj_width)
 
-    model = imputeModelOutCycle.ImputeAtten(2, 2, 2, TF_layers=args.TF_layers, rnn_layers=args.rnn_layers,
-                                            rnn_type=args.rnn_type, emb_dim=args.TF_emb_size,
-                                            rnn_hid_dim=args.rnn_hid_size, heads=args.heads,
-                                            dropout=args.dropout,
-                                            max_pos=max(tra_max_frame, tes_max_frame)).to(device)
+    model = imputeModel.ImputeAtten(2, 2, 2, TF_layers=args.TF_layers, rnn_layers=args.rnn_layers,
+                                    rnn_type=args.rnn_type, emb_dim=args.TF_emb_size,
+                                    rnn_hid_dim=args.rnn_hid_size, heads=args.heads,
+                                    dropout=args.dropout,
+                                    max_pos=max(tra_max_frame, tes_max_frame)).to(device)
     # torch.set_printoptions(precision=12)
 
     train_loader = DataLoader(
@@ -244,15 +236,6 @@ if __name__ == '__main__':
         shuffle=args.shuffle_data, batch_size=args.batch_size, drop_last=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learn_rate)
-
-    # # ------------------------------------------------------------
-    # # load the last checkpoint with the best model
-    # imp_model_save_file = model_path + 'state_dict_imp_imputeAttention1632283126.pth'
-    # model.load_state_dict(torch.load(imp_model_save_file))
-    # test_imp_loss1, test_pre_loss1 = runModel(model, test_loader, optimizer, args.batch_size, device, False, True)
-    # print('Imp test loss: ' + str(test_imp_loss1))
-    # exit()
-    # # ------------------------------------------------------------
 
     best_test_imp_loss = 1000
     best_test_pre_loss = 1000
