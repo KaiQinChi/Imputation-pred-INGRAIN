@@ -9,9 +9,11 @@ to extract the sequential embeddings from newly imputed sequences for predicting
 Furthermore, a new implementation called Imputation Cycle is introduced to enable gradual imputation
 with prediction enhancement at multiple levels, which helps to accelerate the speed of convergence. 
 
-![Figure1](http://static.runoob.com/images/runoob-logo.png)
 
-![Figure2](http://static.runoob.com/images/runoob-logo.png)
+<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig1.png" width="50%">
+
+
+<img decoding="async" src="https://raw.githubusercontent.com/KaiQinChi/Imputation-pred-INGRAIN/main/output/fig2.png" width="50%">
 
 ## Requirements
 - Numpy
